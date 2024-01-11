@@ -1,0 +1,117 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+## Model Objective
+### In this file, we will see an example of how a decision tree can identify patterns based on observations in the training dataset and classify which people survived or not
+
+```{r}
+# Install Packages
+pacotes <- c('titanic',    # carrega a base original titanic_treino 
+             'tidyverse',  # Pacote básico de datawrangling
+             'rpart',      # Biblioteca de árvores
+             'rpart.plot', # Conjunto com Rpart, plota a parvore
+             'gtools',     # funções auxiliares como quantcut,
+             'Rmisc',      # carrega a função sumarySE para a descritiva
+             'scales',     # importa paletas de cores
+             'caret',      # Funções úteis para machine learning
+             'plotly'      # Biblioteca p/ plotagem de gráficos
+             
+             )
+
+if(sum(as.numeric(!pacotes %in% installed.packages())) != 0){
+  instalador <- pacotes[!pacotes %in% installed.packages()]
+  for(i in 1:length(instalador)) {
+    install.packages(instalador, dependencies = T)
+    break()}
+  sapply(pacotes, require, character = T) 
+} else {
+  sapply(pacotes, require, character = T) 
+}
+
+```
+
+### Let's work with the Titanic dataset, which contains the following variables and characteristics:
+
+```{r}
+titanic %>% head
+titanic %>% str
+```
+With the summary function, we see some descriptive statistics of our dataset that can help us better understand how the observations are distributed.
+
+```{r}
+summary(titanic)
+```
+
+```{r}
+graf1<-ggplot(titanic, aes(x=Sex)) + 
+  geom_histogram(color="white",fill = "blue", stat = "count")
+graf1
+graf2 <- hist(titanic$Age, col = 'red', main = "Histogram of Age")
+graf3 <- hist(titanic$Pclass, col = 'lightgray', main = "Histogram of Class")
+```
+### With the exploratory analysis completed, we can begin working on algorithm construction. Firstly, we split the dataset into testing and training sets to evaluate if our model is correctly classifying observations. Then, we generate the "arvore" variable that will contain our decision tree. Based on the first argument passed to the function, in this case, whether the person is a survivor or not, the algorithm will test which of the other variables relates best to the fact of the person having survived, such as sex, age, and class.
+### Afterward, we plot the tree to observe the result it presents.
+
+```{r}
+set.seed(123)
+bool_treino <- stats::runif(dim(titanic)[1])>.25
+
+treino <- titanic[bool_treino,]
+teste  <- titanic[!bool_treino,]
+set.seed(123)
+arvore <- rpart(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare + Embarked,
+                data=treino,
+                parms = list(split = 'gini'),
+                method='class'
+)
+rpart.plot::rpart.plot(arvore
+                       )
+p_treino = stats::predict(arvore, treino)
+c_treino = base::factor(ifelse(p_treino[,2]>.5, "Y", "N"))
+p_teste = stats::predict(arvore, teste)
+c_teste = base::factor(ifelse(p_teste[,2]>.5, "Y", "N"))
+
+tab <- table(c_treino, treino$Survived)
+acc <- (tab[1,1]+tab[2,2])/nrow(treino)
+sprintf('Accuracy on the training set: %s ', percent(acc))
+
+tab <- table(c_teste, teste$Survived)
+acc <- (tab[1,1]+tab[2,2])/nrow(teste)
+sprintf('Accuracy on the training set: %s ', percent(acc))
+```
+### With the created model, we can assess its accuracy (number of correct predictions / total attempts) in various ways. We will assume that if an observation is classified with a probability greater than 50% of survival, the person will be considered a survivor; otherwise, if the probability is less than 50%, the person will not be considered a survivor.
+```{r}
+prob = predict(arvore, titanic)
+class = prob[,2]>.5
+tab <- table(class, titanic$Survived)
+tab
+df <- as.data.frame(prob)
+survived <- filter(df, Y>0.5)
+not_survived <- filter(df, Y<0.5)
+acc <- (tab[1,1] + tab[2,2])/ sum(tab)
+print(paste0('The model presents ',  nrow(survived) ,' survivals'))
+print(paste0('The model presents ',  nrow(not_survived) ,' non survavials'))
+print(paste0('Accuracy was:', acc))
+
+```
+### Also, in the histogram below, we observe the number of correct predictions represented by the "true" bar and the number of errors represented by the "false" bar.
+```{r}
+df5 <- as.data.frame(p_teste)
+comp <- data.frame(df5)
+comp['verif'] <- teste$Survived
+comp$Y[comp$Y >= 0.5] <- 'Y'
+comp$Y[comp$Y <= 0.5] <- 'N'
+comp['acertos'] <- comp$Y == comp$verif
+df5 <- as.data.frame(p_teste)
+comp <- data.frame(df5)
+comp['verif'] <- teste$Survived
+comp$Y[comp$Y >= 0.5] <- 'Y'
+comp$Y[comp$Y <= 0.5] <- 'N'
+comp['acertos'] <- comp$Y == comp$verif
+ggplot(comp, aes(x=acertos)) + 
+  geom_histogram(color="white",fill = "blue" ,stat = "count")
+```
+### Therefore, we conclude the construction of the algorithm capable of classifying future observations, providing us with the probability of survival for a particular individual based on their characteristics.
+
+
