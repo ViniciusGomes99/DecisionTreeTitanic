@@ -24,4 +24,4 @@ This project successfully demonstrates the construction of a decision tree algor
 
 
 ## Contact Information
-For any queries or feedback, please contact me thorought my [Linkedin](https://www.linkedin.com/in/vinicius-capozzi)!!
+For any queries or feedback, please contact me through my [Linkedin](https://www.linkedin.com/in/vinicius-capozzi)!!
